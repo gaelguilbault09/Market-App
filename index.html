@@ -145,6 +145,18 @@
           <div class="switch on" data-slot="cloture"></div>
         </div>
       </div>
+      <div class="sec-label">Données de marché</div>
+      <div class="card">
+        <div class="settings-label" style="margin-bottom:10px;">Clé API Massive.com</div>
+        <input type="password" id="api-key-input" placeholder="Colle ta clé API ici"
+          style="width:100%;background:var(--surface2);border:1px solid var(--border);border-radius:10px;
+          padding:12px;color:var(--text);font-size:14px;font-family:'JetBrains Mono',monospace;margin-bottom:10px;">
+        <button class="btn" id="save-key">Enregistrer la clé</button>
+        <div class="settings-sub" style="margin-top:10px;line-height:1.5;" id="key-status">
+          Aucune clé enregistrée — données fictives affichées.
+        </div>
+      </div>
+
       <div class="sec-label">À propos</div>
       <div class="card">
         <div class="settings-sub" style="line-height:1.6;">
@@ -223,6 +235,64 @@ function renderNews(){
 }
 
 renderTicker(); renderBriefing(); renderNews();
+
+// ============ API MASSIVE.COM (données réelles) ============
+// Mapping nom affiché -> symbole Massive.com (format indice = I:XXXX)
+const TICKERS_MASSIVE = [
+  { nom: 'S&P 500', symbole: 'I:SPX' },
+  { nom: 'NASDAQ', symbole: 'I:NDX' },
+  { nom: 'DOW JONES', symbole: 'I:DJI' },
+];
+
+function getApiKey(){ return localStorage.getItem('massive_api_key') || ''; }
+
+async function chargerDonneesReelles(){
+  const key = getApiKey();
+  if (!key) return;
+
+  try {
+    const resultats = [];
+    for (const t of TICKERS_MASSIVE) {
+      const url = `https://api.massive.com/v2/aggs/ticker/${t.symbole}/prev?adjusted=true&apiKey=${key}`;
+      const res = await fetch(url);
+      if (!res.ok) throw new Error(`Erreur ${res.status} pour ${t.symbole}`);
+      const data = await res.json();
+      const r = data.results && data.results[0];
+      if (!r) continue;
+      const variation = ((r.c - r.o) / r.o) * 100;
+      resultats.push({
+        nom: t.nom,
+        px: r.c.toLocaleString('fr-CA', { minimumFractionDigits: 2, maximumFractionDigits: 2 }),
+        chg: (variation >= 0 ? '+' : '') + variation.toFixed(2) + '%',
+        up: variation >= 0,
+      });
+    }
+    if (resultats.length) {
+      DONNEES.indices = resultats;
+      renderTicker();
+      renderBriefing();
+      document.getElementById('key-status').textContent = 'Connecté — données réelles (clôture précédente).';
+    }
+  } catch (err) {
+    document.getElementById('key-status').textContent = 'Erreur de connexion — vérifie ta clé. (' + err.message + ')';
+    console.error(err);
+  }
+}
+
+document.getElementById('save-key').addEventListener('click', ()=>{
+  const val = document.getElementById('api-key-input').value.trim();
+  if (val) {
+    localStorage.setItem('massive_api_key', val);
+    document.getElementById('key-status').textContent = 'Clé enregistrée — chargement…';
+    chargerDonneesReelles();
+  }
+});
+
+// Pré-remplir le champ si une clé est déjà enregistrée, et charger au démarrage
+if (getApiKey()) {
+  document.getElementById('api-key-input').value = getApiKey();
+  chargerDonneesReelles();
+}
 
 // ============ NAVIGATION ============
 document.querySelectorAll('.nav-btn').forEach(btn=>{
