@@ -238,10 +238,12 @@ renderTicker(); renderBriefing(); renderNews();
 
 // ============ API MASSIVE.COM (données réelles) ============
 // Mapping nom affiché -> symbole Massive.com (format indice = I:XXXX)
+// Les indices bruts (I:SPX etc.) demandent un forfait payant sur Massive.com.
+// On utilise plutôt les ETF qui les répliquent — accessibles en gratuit.
 const TICKERS_MASSIVE = [
-  { nom: 'S&P 500', symbole: 'I:SPX' },
-  { nom: 'NASDAQ', symbole: 'I:NDX' },
-  { nom: 'DOW JONES', symbole: 'I:DJI' },
+  { nom: 'S&P 500 (SPY)', symbole: 'SPY' },
+  { nom: 'NASDAQ (QQQ)', symbole: 'QQQ' },
+  { nom: 'DOW JONES (DIA)', symbole: 'DIA' },
 ];
 
 function getApiKey(){ return localStorage.getItem('massive_api_key') || ''; }
