@@ -1,0 +1,309 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+<meta name="theme-color" content="#0a0a0a">
+<link rel="manifest" href="./manifest.json">
+<title>Briefing Marchés</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg:#0a0a0c; --surface:#141417; --surface2:#1c1c20; --border:#26262b;
+    --text:#f2f2f0; --muted:#6b6b70; --sub:#9a9a9f;
+    --up:#3ddc97; --down:#ff5c5c; --amber:#e8a33d;
+    --radius:14px; --st:env(safe-area-inset-top,0px); --sb:env(safe-area-inset-bottom,0px);
+  }
+  *{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent;}
+  html,body{height:100%;background:var(--bg);color:var(--text);
+    font-family:'Space Grotesk',-apple-system,sans-serif;overflow:hidden;}
+  .mono{font-family:'JetBrains Mono',monospace;}
+
+  #app{display:flex;flex-direction:column;height:100%;padding-top:var(--st);}
+
+  /* HEADER */
+  #header{padding:18px 20px 14px;flex-shrink:0;}
+  .hd-top{display:flex;justify-content:space-between;align-items:baseline;}
+  .hd-title{font-size:22px;font-weight:700;letter-spacing:-0.02em;}
+  .hd-date{font-size:12px;color:var(--muted);font-family:'JetBrains Mono',monospace;text-transform:uppercase;letter-spacing:0.04em;}
+
+  /* TICKER TAPE - signature element */
+  #ticker-wrap{overflow:hidden;white-space:nowrap;margin-top:14px;border-top:1px solid var(--border);
+    border-bottom:1px solid var(--border);padding:10px 0;}
+  #ticker{display:inline-block;animation:scroll 28s linear infinite;}
+  #ticker.paused{animation-play-state:paused;}
+  .tick-item{display:inline-flex;align-items:baseline;gap:6px;margin-right:28px;font-family:'JetBrains Mono',monospace;font-size:13px;}
+  .tick-sym{color:var(--sub);font-weight:500;}
+  .tick-px{color:var(--text);}
+  .tick-chg.up{color:var(--up);}
+  .tick-chg.down{color:var(--down);}
+  @keyframes scroll{from{transform:translateX(0);}to{transform:translateX(-50%);}}
+
+  /* NAV */
+  #nav{display:flex;gap:6px;padding:14px 20px 4px;flex-shrink:0;}
+  .nav-btn{flex:1;text-align:center;padding:9px 0;border-radius:10px;font-size:13px;font-weight:600;
+    color:var(--sub);background:var(--surface);border:1px solid var(--border);transition:all .15s;}
+  .nav-btn.active{background:var(--text);color:var(--bg);border-color:var(--text);}
+
+  /* SCROLL */
+  #scroll{flex:1;overflow-y:auto;-webkit-overflow-scrolling:touch;padding:16px 20px calc(24px + var(--sb));}
+
+  .card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:18px;margin-bottom:14px;}
+  .card-eyebrow{font-size:11px;color:var(--amber);text-transform:uppercase;letter-spacing:0.08em;font-weight:600;margin-bottom:8px;}
+  .card-body{font-size:15px;line-height:1.6;color:var(--text);}
+  .card-time{font-size:12px;color:var(--muted);margin-top:12px;font-family:'JetBrains Mono',monospace;}
+
+  .sec-label{font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:0.08em;font-weight:600;margin:20px 0 10px;}
+
+  .idx-row{display:flex;justify-content:space-between;align-items:center;padding:13px 0;border-bottom:1px solid var(--border);}
+  .idx-row:last-child{border-bottom:none;}
+  .idx-name{font-size:15px;font-weight:600;}
+  .idx-right{text-align:right;}
+  .idx-px{font-size:15px;font-family:'JetBrains Mono',monospace;}
+  .idx-chg{font-size:12px;font-family:'JetBrains Mono',monospace;margin-top:2px;}
+  .idx-chg.up{color:var(--up);} .idx-chg.down{color:var(--down);}
+
+  .news-item{padding:13px 0;border-bottom:1px solid var(--border);}
+  .news-item:last-child{border-bottom:none;}
+  .news-tag{display:inline-block;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:0.05em;
+    color:var(--amber);background:rgba(232,163,61,0.12);padding:2px 7px;border-radius:5px;margin-bottom:6px;}
+  .news-title{font-size:14px;font-weight:500;line-height:1.4;}
+
+  .settings-row{display:flex;justify-content:space-between;align-items:center;padding:13px 0;border-bottom:1px solid var(--border);}
+  .settings-row:last-child{border-bottom:none;}
+  .settings-label{font-size:14px;font-weight:500;}
+  .settings-sub{font-size:12px;color:var(--muted);margin-top:2px;}
+  .switch{width:44px;height:26px;border-radius:13px;background:var(--surface2);border:1px solid var(--border);
+    position:relative;flex-shrink:0;transition:background .15s;}
+  .switch.on{background:var(--up);border-color:var(--up);}
+  .switch::after{content:'';position:absolute;top:2px;left:2px;width:20px;height:20px;border-radius:50%;
+    background:#fff;transition:transform .15s;}
+  .switch.on::after{transform:translateX(18px);}
+
+  .btn{width:100%;padding:14px;border-radius:12px;font-size:14px;font-weight:600;text-align:center;
+    background:var(--text);color:var(--bg);margin-top:6px;}
+  .btn.ghost{background:transparent;border:1px solid var(--border);color:var(--sub);}
+  .empty{text-align:center;padding:40px 20px;color:var(--muted);font-size:13px;}
+</style>
+</head>
+<body>
+<div id="app">
+
+  <div id="header">
+    <div class="hd-top">
+      <div class="hd-title">Briefing Marchés</div>
+      <div class="hd-date mono" id="hd-date">—</div>
+    </div>
+    <div id="ticker-wrap"><div id="ticker" class="mono"></div></div>
+  </div>
+
+  <div id="nav">
+    <div class="nav-btn active" data-view="briefing">Briefing</div>
+    <div class="nav-btn" data-view="actus">Actualités</div>
+    <div class="nav-btn" data-view="reglages">Réglages</div>
+  </div>
+
+  <div id="scroll">
+
+    <div id="view-briefing">
+      <div class="card">
+        <div class="card-eyebrow" id="session-label">Ouverture du marché</div>
+        <div class="card-body" id="session-resume">Chargement du résumé…</div>
+        <div class="card-time" id="session-time">—</div>
+      </div>
+
+      <div class="sec-label">Indices</div>
+      <div class="card" id="indices-list"></div>
+    </div>
+
+    <div id="view-actus" style="display:none;">
+      <div class="sec-label">Actualités du jour</div>
+      <div class="card" id="news-list"></div>
+    </div>
+
+    <div id="view-reglages" style="display:none;">
+      <div class="sec-label">Notifications</div>
+      <div class="card">
+        <div class="settings-row">
+          <div>
+            <div class="settings-label">Activer les notifications</div>
+            <div class="settings-sub" id="perm-status">Non activées</div>
+          </div>
+          <div class="switch" id="notif-switch"></div>
+        </div>
+        <div class="settings-row">
+          <div class="settings-label">Ouverture — 9h30</div>
+          <div class="switch on" data-slot="ouverture"></div>
+        </div>
+        <div class="settings-row">
+          <div class="settings-label">Mi-journée — 12h00</div>
+          <div class="switch on" data-slot="midi"></div>
+        </div>
+        <div class="settings-row">
+          <div class="settings-label">Clôture — 16h00</div>
+          <div class="switch on" data-slot="cloture"></div>
+        </div>
+      </div>
+      <div class="sec-label">À propos</div>
+      <div class="card">
+        <div class="settings-sub" style="line-height:1.6;">
+          Les notifications programmées reposent sur le service worker et fonctionnent de façon fiable
+          quand l'app a été ouverte récemment. Pour une fiabilité maximale même app fermée plusieurs heures,
+          garde "Synchronisation en arrière-plan" activée pour Chrome dans les réglages Android
+          (Paramètres → Apps → Chrome → Batterie → Non restreinte).
+        </div>
+        <button class="btn ghost" id="test-notif" style="margin-top:14px;">Envoyer une notification test</button>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<script>
+// ============ DONNÉES (fictives — à remplacer par IBKR + génération IA) ============
+const DONNEES = {
+  session: { label: 'Ouverture du marché', heure: '9h30 HE',
+    resume: "Les marchés ouvrent en légère hausse, portés par de bons résultats dans le secteur technologique. Le S&P 500 progresse de 0.4%, le NASDAQ de 0.6%. L'attention reste tournée vers les annonces de la Fed prévues cette semaine." },
+  indices: [
+    { nom: 'S&P 500', px: '5,432.18', chg: '+0.42%', up: true },
+    { nom: 'NASDAQ', px: '17,893.44', chg: '+0.61%', up: true },
+    { nom: 'DOW JONES', px: '39,120.05', chg: '-0.12%', up: false },
+    { nom: 'TSX', px: '22,845.30', chg: '+0.28%', up: true },
+  ],
+  news: [
+    { tag: 'FED', titre: "La Fed maintient ses taux, signale deux baisses possibles d'ici fin d'année." },
+    { tag: 'TECH', titre: "Résultats trimestriels solides pour plusieurs géants technologiques." },
+    { tag: 'ÉNERGIE', titre: "Le pétrole recule sur des inquiétudes de demande mondiale." },
+  ]
+};
+
+// ============ RENDU ============
+function formatDate(){
+  const d = new Date();
+  const jours = ['DIM','LUN','MAR','MER','JEU','VEN','SAM'];
+  const mois = ['JAN','FÉV','MAR','AVR','MAI','JUIN','JUIL','AOÛT','SEP','OCT','NOV','DÉC'];
+  return `${jours[d.getDay()]} ${d.getDate()} ${mois[d.getMonth()]} · ${d.getHours()}:${String(d.getMinutes()).padStart(2,'0')}`;
+}
+document.getElementById('hd-date').textContent = formatDate();
+setInterval(()=>{ document.getElementById('hd-date').textContent = formatDate(); }, 30000);
+
+function renderTicker(){
+  const wrap = document.getElementById('ticker');
+  const items = [...DONNEES.indices, ...DONNEES.indices].map(i => `
+    <span class="tick-item">
+      <span class="tick-sym">${i.nom}</span>
+      <span class="tick-px">${i.px}</span>
+      <span class="tick-chg ${i.up?'up':'down'}">${i.chg}</span>
+    </span>`).join('');
+  wrap.innerHTML = items;
+}
+
+function renderBriefing(){
+  document.getElementById('session-label').textContent = DONNEES.session.label;
+  document.getElementById('session-resume').textContent = DONNEES.session.resume;
+  document.getElementById('session-time').textContent = 'Mis à jour · ' + DONNEES.session.heure;
+
+  document.getElementById('indices-list').innerHTML = DONNEES.indices.map(i => `
+    <div class="idx-row">
+      <div class="idx-name">${i.nom}</div>
+      <div class="idx-right">
+        <div class="idx-px">${i.px}</div>
+        <div class="idx-chg ${i.up?'up':'down'}">${i.chg}</div>
+      </div>
+    </div>`).join('');
+}
+
+function renderNews(){
+  document.getElementById('news-list').innerHTML = DONNEES.news.map(n => `
+    <div class="news-item">
+      <div class="news-tag">${n.tag}</div>
+      <div class="news-title">${n.titre}</div>
+    </div>`).join('');
+}
+
+renderTicker(); renderBriefing(); renderNews();
+
+// ============ NAVIGATION ============
+document.querySelectorAll('.nav-btn').forEach(btn=>{
+  btn.addEventListener('click', ()=>{
+    document.querySelectorAll('.nav-btn').forEach(b=>b.classList.remove('active'));
+    btn.classList.add('active');
+    ['briefing','actus','reglages'].forEach(v=>{
+      document.getElementById('view-'+v).style.display = (v===btn.dataset.view) ? 'block' : 'none';
+    });
+  });
+});
+
+// ============ SERVICE WORKER + NOTIFICATIONS ============
+let swReg = null;
+if ('serviceWorker' in navigator) {
+  navigator.serviceWorker.register('./sw.js').then(reg => {
+    swReg = reg;
+    // Tente d'activer la synchronisation périodique (Chrome Android, app installée)
+    if ('periodicSync' in reg) {
+      reg.periodicSync.register('verifier-briefing', { minInterval: 15 * 60 * 1000 }).catch(()=>{});
+    }
+  });
+}
+
+function updatePermStatus(){
+  const el = document.getElementById('perm-status');
+  const sw = document.getElementById('notif-switch');
+  if (Notification.permission === 'granted') {
+    el.textContent = 'Activées';
+    sw.classList.add('on');
+  } else {
+    el.textContent = 'Non activées';
+    sw.classList.remove('on');
+  }
+}
+updatePermStatus();
+
+document.getElementById('notif-switch').addEventListener('click', async ()=>{
+  if (Notification.permission !== 'granted') {
+    const perm = await Notification.requestPermission();
+    updatePermStatus();
+  } else {
+    alert("Pour désactiver, passe par les réglages de notifications d'Android pour cette app.");
+  }
+});
+
+document.getElementById('test-notif').addEventListener('click', ()=>{
+  if (Notification.permission !== 'granted') {
+    Notification.requestPermission().then(p => { if (p==='granted') envoyerTest(); });
+  } else {
+    envoyerTest();
+  }
+});
+
+function envoyerTest(){
+  if (swReg) {
+    swReg.active.postMessage({ type:'SHOW_NOTIF', title:'Briefing Marchés', body:'Notification test — tout fonctionne.' });
+  }
+}
+
+// Vérification en avant-plan (fiable tant que l'app est ouverte ou en veille récente)
+const MOMENTS = [
+  { h:9, m:30, label:'Ouverture du marché', cle:'ouverture' },
+  { h:12, m:0, label:'Point mi-journée', cle:'midi' },
+  { h:16, m:0, label:'Clôture du marché', cle:'cloture' },
+];
+function verifierMomentsBriefing(){
+  const now = new Date();
+  const jour = now.getDay();
+  if (jour===0 || jour===6) return;
+  MOMENTS.forEach(mmt=>{
+    if (now.getHours()===mmt.h && now.getMinutes()===mmt.m) {
+      const cleJour = `notif_${mmt.cle}_${now.toDateString()}`;
+      if (!localStorage.getItem(cleJour) && Notification.permission==='granted' && swReg) {
+        swReg.active.postMessage({ type:'SHOW_NOTIF', title:'Briefing Marchés', body:`${mmt.label} — ouvre l'app pour ton résumé.` });
+        localStorage.setItem(cleJour, '1');
+      }
+    }
+  });
+}
+setInterval(verifierMomentsBriefing, 60000);
+</script>
+</body>
+</html>
