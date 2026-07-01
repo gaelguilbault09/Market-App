@@ -64,11 +64,24 @@
   .idx-chg{font-size:12px;font-family:'JetBrains Mono',monospace;margin-top:2px;}
   .idx-chg.up{color:var(--up);} .idx-chg.down{color:var(--down);}
 
-  .news-item{padding:13px 0;border-bottom:1px solid var(--border);}
+  .news-item{padding:14px 0;border-bottom:1px solid var(--border);}
   .news-item:last-child{border-bottom:none;}
   .news-tag{display:inline-block;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:0.05em;
     color:var(--amber);background:rgba(232,163,61,0.12);padding:2px 7px;border-radius:5px;margin-bottom:6px;}
-  .news-title{font-size:14px;font-weight:500;line-height:1.4;}
+  .news-title{font-size:14px;font-weight:600;line-height:1.4;}
+  .news-desc{font-size:13px;color:var(--sub);line-height:1.5;margin-top:5px;}
+  .news-meta{font-size:11px;color:var(--muted);margin-top:7px;font-family:'JetBrains Mono',monospace;}
+  .news-link{color:var(--sub);text-decoration:underline;}
+
+  .mover-row{display:flex;justify-content:space-between;align-items:center;padding:13px 0;border-bottom:1px solid var(--border);}
+  .mover-row:last-child{border-bottom:none;}
+  .mover-left{display:flex;align-items:center;gap:10px;}
+  .mover-rank{font-size:11px;color:var(--muted);font-family:'JetBrains Mono',monospace;width:16px;}
+  .mover-sym{font-size:15px;font-weight:600;}
+  .mover-right{text-align:right;}
+  .mover-px{font-size:14px;font-family:'JetBrains Mono',monospace;color:var(--sub);}
+  .mover-chg{font-size:14px;font-family:'JetBrains Mono',monospace;font-weight:600;margin-top:2px;}
+  .mover-chg.up{color:var(--up);} .mover-chg.down{color:var(--down);}
 
   .settings-row{display:flex;justify-content:space-between;align-items:center;padding:13px 0;border-bottom:1px solid var(--border);}
   .settings-row:last-child{border-bottom:none;}
@@ -100,6 +113,7 @@
 
   <div id="nav">
     <div class="nav-btn active" data-view="briefing">Briefing</div>
+    <div class="nav-btn" data-view="mouvements">Mouvements</div>
     <div class="nav-btn" data-view="actus">Actualités</div>
     <div class="nav-btn" data-view="reglages">Réglages</div>
   </div>
@@ -113,8 +127,20 @@
         <div class="card-time" id="session-time">—</div>
       </div>
 
-      <div class="sec-label">Indices</div>
-      <div class="card" id="indices-list"></div>
+      <div id="region-toggle" style="display:flex;gap:6px;margin-bottom:4px;">
+        <div class="nav-btn active" data-region="intl">🌍 International</div>
+        <div class="nav-btn" data-region="canada">🍁 Canada</div>
+      </div>
+
+      <div id="categories-container"></div>
+    </div>
+
+    <div id="view-mouvements" style="display:none;">
+      <div class="sec-label">Plus fortes hausses</div>
+      <div class="card" id="gainers-list"><div class="empty">Ouvre cet onglet pour charger les données</div></div>
+
+      <div class="sec-label">Plus fortes baisses</div>
+      <div class="card" id="losers-list"></div>
     </div>
 
     <div id="view-actus" style="display:none;">
@@ -173,22 +199,60 @@
 </div>
 
 <script>
-// ============ DONNÉES (fictives — à remplacer par IBKR + génération IA) ============
+// ============ DONNÉES (fictives — remplacées par de vraies données une fois la clé API ajoutée) ============
 const DONNEES = {
   session: { label: 'Ouverture du marché', heure: '9h30 HE',
     resume: "Les marchés ouvrent en légère hausse, portés par de bons résultats dans le secteur technologique. Le S&P 500 progresse de 0.4%, le NASDAQ de 0.6%. L'attention reste tournée vers les annonces de la Fed prévues cette semaine." },
-  indices: [
-    { nom: 'S&P 500', px: '5,432.18', chg: '+0.42%', up: true },
-    { nom: 'NASDAQ', px: '17,893.44', chg: '+0.61%', up: true },
-    { nom: 'DOW JONES', px: '39,120.05', chg: '-0.12%', up: false },
-    { nom: 'TSX', px: '22,845.30', chg: '+0.28%', up: true },
-  ],
   news: [
     { tag: 'FED', titre: "La Fed maintient ses taux, signale deux baisses possibles d'ici fin d'année." },
     { tag: 'TECH', titre: "Résultats trimestriels solides pour plusieurs géants technologiques." },
     { tag: 'ÉNERGIE', titre: "Le pétrole recule sur des inquiétudes de demande mondiale." },
   ]
 };
+
+// Catégories par région — symbole = ticker Massive.com (données réelles une fois connecté)
+const CATEGORIES = {
+  intl: [
+    { cat: 'Indices', items: [
+      { nom: 'S&P 500', sym: 'SPY' },
+      { nom: 'NASDAQ', sym: 'QQQ' },
+      { nom: 'DOW JONES', sym: 'DIA' },
+      { nom: 'RUSSELL 2000', sym: 'IWM' },
+    ]},
+    { cat: 'Technologie', items: [ { nom: 'Secteur tech (XLK)', sym: 'XLK' } ] },
+    { cat: 'Finance', items: [ { nom: 'Secteur finance (XLF)', sym: 'XLF' } ] },
+    { cat: 'Santé', items: [ { nom: 'Secteur santé (XLV)', sym: 'XLV' } ] },
+    { cat: 'Énergie', items: [ { nom: 'Secteur énergie (XLE)', sym: 'XLE' } ] },
+    { cat: 'Industrie', items: [ { nom: 'Secteur industriel (XLI)', sym: 'XLI' } ] },
+    { cat: 'Consommation discrétionnaire', items: [ { nom: 'Conso. discrétionnaire (XLY)', sym: 'XLY' } ] },
+    { cat: 'Consommation de base', items: [ { nom: 'Conso. de base (XLP)', sym: 'XLP' } ] },
+    { cat: 'Immobilier', items: [ { nom: 'REIT / immobilier (XLRE)', sym: 'XLRE' } ] },
+    { cat: 'Services publics', items: [ { nom: 'Services publics (XLU)', sym: 'XLU' } ] },
+    { cat: 'Télécommunications', items: [ { nom: 'Communications (XLC)', sym: 'XLC' } ] },
+    { cat: 'Matériaux', items: [ { nom: 'Matériaux (XLB)', sym: 'XLB' } ] },
+    { cat: 'Matières premières', items: [
+      { nom: 'Or (GLD)', sym: 'GLD' },
+      { nom: 'Pétrole (USO)', sym: 'USO' },
+    ]},
+    { cat: 'Crypto', items: [ { nom: 'Bitcoin (IBIT)', sym: 'IBIT' } ] },
+  ],
+  canada: [
+    { cat: 'Indice', items: [ { nom: 'Canada large cap (EWC)', sym: 'EWC' } ] },
+    { cat: 'Banques', items: [ { nom: 'Banque Royale (RY)', sym: 'RY' } ] },
+    { cat: 'Énergie', items: [ { nom: 'Enbridge (ENB)', sym: 'ENB' } ] },
+    { cat: 'Transport', items: [ { nom: 'Canadien National (CNI)', sym: 'CNI' } ] },
+    { cat: 'Technologie', items: [ { nom: 'Shopify (SHOP)', sym: 'SHOP' } ] },
+    { cat: 'Télécom', items: [ { nom: 'BCE Inc. (BCE)', sym: 'BCE' } ] },
+    { cat: 'Matériaux', items: [ { nom: 'Barrick Gold (GOLD)', sym: 'GOLD' } ] },
+    { cat: 'Consommation', items: [ { nom: 'Restaurant Brands / Tim Hortons (QSR)', sym: 'QSR' } ] },
+  ],
+};
+// Note : Massive.com couvre les marchés américains. Les tickers "Canada" ci-dessus sont
+// de grandes entreprises canadiennes qui se transigent directement sur le NYSE/NASDAQ —
+// donc de vraies données, mais pas la Bourse de Toronto elle-même.
+
+let regionActive = 'intl';
+const DONNEES_LIVE = {}; // rempli par l'API — clé = symbole, valeur = {px, chg, up}
 
 // ============ RENDU ============
 function formatDate(){
@@ -200,30 +264,70 @@ function formatDate(){
 document.getElementById('hd-date').textContent = formatDate();
 setInterval(()=>{ document.getElementById('hd-date').textContent = formatDate(); }, 30000);
 
+// Valeurs fictives par défaut pour l'affichage avant connexion à l'API
+const FICTIF = {
+  SPY:{px:'543.22',chg:'+0.42%',up:true}, QQQ:{px:'478.93',chg:'+0.61%',up:true},
+  DIA:{px:'391.20',chg:'-0.12%',up:false}, IWM:{px:'204.51',chg:'+0.33%',up:true},
+  XLK:{px:'238.90',chg:'+0.74%',up:true}, XLF:{px:'46.80',chg:'+0.25%',up:true},
+  XLV:{px:'141.30',chg:'-0.18%',up:false}, XLE:{px:'91.40',chg:'+0.55%',up:true},
+  XLI:{px:'132.60',chg:'+0.31%',up:true}, XLY:{px:'198.40',chg:'+0.48%',up:true},
+  XLP:{px:'78.90',chg:'-0.05%',up:false}, XLRE:{px:'42.15',chg:'+0.10%',up:true},
+  XLU:{px:'76.30',chg:'+0.22%',up:true}, XLC:{px:'92.70',chg:'+0.65%',up:true},
+  XLB:{px:'88.10',chg:'-0.15%',up:false}, GLD:{px:'241.56',chg:'+0.15%',up:true},
+  USO:{px:'72.40',chg:'-0.60%',up:false}, IBIT:{px:'58.30',chg:'+1.85%',up:true},
+  EWC:{px:'44.80',chg:'+0.28%',up:true}, RY:{px:'118.40',chg:'+0.18%',up:true},
+  ENB:{px:'40.22',chg:'-0.05%',up:false}, CNI:{px:'128.60',chg:'+0.12%',up:true},
+  SHOP:{px:'92.80',chg:'+1.10%',up:true}, BCE:{px:'34.15',chg:'-0.30%',up:false},
+  GOLD:{px:'19.40',chg:'+0.40%',up:true}, QSR:{px:'68.90',chg:'+0.20%',up:true},
+};
+
 function renderTicker(){
   const wrap = document.getElementById('ticker');
-  const items = [...DONNEES.indices, ...DONNEES.indices].map(i => `
-    <span class="tick-item">
-      <span class="tick-sym">${i.nom}</span>
-      <span class="tick-px">${i.px}</span>
-      <span class="tick-chg ${i.up?'up':'down'}">${i.chg}</span>
-    </span>`).join('');
-  wrap.innerHTML = items;
+  const vedettes = ['SPY','QQQ','DIA','EWC','RY','GLD'];
+  const items = vedettes.map(sym=>{
+    const d = DONNEES_LIVE[sym] || FICTIF[sym];
+    return `<span class="tick-item">
+      <span class="tick-sym">${sym}</span>
+      <span class="tick-px">${d.px}</span>
+      <span class="tick-chg ${d.up?'up':'down'}">${d.chg}</span>
+    </span>`;
+  });
+  wrap.innerHTML = items.concat(items).join('');
 }
+
+function renderCategories(){
+  const cats = CATEGORIES[regionActive];
+  document.getElementById('categories-container').innerHTML = cats.map(c => `
+    <div class="sec-label">${c.cat}</div>
+    <div class="card">
+      ${c.items.map(it => {
+        const d = DONNEES_LIVE[it.sym] || FICTIF[it.sym];
+        return `
+        <div class="idx-row">
+          <div class="idx-name">${it.nom}</div>
+          <div class="idx-right">
+            <div class="idx-px">${d.px}</div>
+            <div class="idx-chg ${d.up?'up':'down'}">${d.chg}</div>
+          </div>
+        </div>`;
+      }).join('')}
+    </div>`).join('');
+}
+
+document.querySelectorAll('#region-toggle .nav-btn').forEach(btn=>{
+  btn.addEventListener('click', ()=>{
+    document.querySelectorAll('#region-toggle .nav-btn').forEach(b=>b.classList.remove('active'));
+    btn.classList.add('active');
+    regionActive = btn.dataset.region;
+    renderCategories();
+  });
+});
 
 function renderBriefing(){
   document.getElementById('session-label').textContent = DONNEES.session.label;
   document.getElementById('session-resume').textContent = DONNEES.session.resume;
   document.getElementById('session-time').textContent = 'Mis à jour · ' + DONNEES.session.heure;
-
-  document.getElementById('indices-list').innerHTML = DONNEES.indices.map(i => `
-    <div class="idx-row">
-      <div class="idx-name">${i.nom}</div>
-      <div class="idx-right">
-        <div class="idx-px">${i.px}</div>
-        <div class="idx-chg ${i.up?'up':'down'}">${i.chg}</div>
-      </div>
-    </div>`).join('');
+  renderCategories();
 }
 
 function renderNews(){
@@ -240,43 +344,132 @@ renderTicker(); renderBriefing(); renderNews();
 // Mapping nom affiché -> symbole Massive.com (format indice = I:XXXX)
 // Les indices bruts (I:SPX etc.) demandent un forfait payant sur Massive.com.
 // On utilise plutôt les ETF qui les répliquent — accessibles en gratuit.
-const TICKERS_MASSIVE = [
-  { nom: 'S&P 500 (SPY)', symbole: 'SPY' },
-  { nom: 'NASDAQ (QQQ)', symbole: 'QQQ' },
-  { nom: 'DOW JONES (DIA)', symbole: 'DIA' },
-];
+const TICKERS_MASSIVE = [...new Set([
+  ...CATEGORIES.intl.flatMap(c => c.items.map(i => i.sym)),
+  ...CATEGORIES.canada.flatMap(c => c.items.map(i => i.sym)),
+])];
 
 function getApiKey(){ return localStorage.getItem('massive_api_key') || ''; }
+function attendre(ms){ return new Promise(r=>setTimeout(r, ms)); }
 
 async function chargerDonneesReelles(){
   const key = getApiKey();
   if (!key) return;
 
   try {
-    const resultats = [];
-    for (const t of TICKERS_MASSIVE) {
-      const url = `https://api.massive.com/v2/aggs/ticker/${t.symbole}/prev?adjusted=true&apiKey=${key}`;
-      const res = await fetch(url);
-      if (!res.ok) throw new Error(`Erreur ${res.status} pour ${t.symbole}`);
-      const data = await res.json();
-      const r = data.results && data.results[0];
-      if (!r) continue;
-      const variation = ((r.c - r.o) / r.o) * 100;
-      resultats.push({
-        nom: t.nom,
-        px: r.c.toLocaleString('fr-CA', { minimumFractionDigits: 2, maximumFractionDigits: 2 }),
+    // Un seul appel pour tous les tickers (indices + catégories + Canada) — ménage la limite de 5 req/min
+    const url = `https://api.massive.com/v2/snapshot/locale/us/markets/stocks/tickers?tickers=${TICKERS_MASSIVE.join(',')}&apiKey=${key}`;
+    const res = await fetch(url);
+    if (!res.ok) throw new Error(`Erreur ${res.status}`);
+    const data = await res.json();
+    const snaps = data.tickers || [];
+    if (!snaps.length) throw new Error('Aucune donnée retournée');
+
+    snaps.forEach(s => {
+      const variation = s.todaysChangePerc || 0;
+      const px = (s.day && s.day.c) ? s.day.c : (s.prevDay && s.prevDay.c) ? s.prevDay.c : null;
+      if (px === null) return;
+      DONNEES_LIVE[s.ticker] = {
+        px: px.toLocaleString('fr-CA', { minimumFractionDigits: 2, maximumFractionDigits: 2 }),
         chg: (variation >= 0 ? '+' : '') + variation.toFixed(2) + '%',
         up: variation >= 0,
-      });
-    }
-    if (resultats.length) {
-      DONNEES.indices = resultats;
-      renderTicker();
-      renderBriefing();
-      document.getElementById('key-status').textContent = 'Connecté — données réelles (clôture précédente).';
-    }
+      };
+    });
+
+    renderTicker();
+    renderCategories();
+    document.getElementById('key-status').textContent = 'Connecté — données réelles.';
   } catch (err) {
     document.getElementById('key-status').textContent = 'Erreur de connexion — vérifie ta clé. (' + err.message + ')';
+    console.error(err);
+  }
+}
+
+// ============ ACTUALITÉS RÉELLES ============
+function formatDateNouvelle(iso){
+  const d = new Date(iso);
+  const mois = ['jan','fév','mar','avr','mai','juin','juil','août','sep','oct','nov','déc'];
+  return `${d.getDate()} ${mois[d.getMonth()]} · ${d.getHours()}:${String(d.getMinutes()).padStart(2,'0')}`;
+}
+
+async function chargerActualites(){
+  const key = getApiKey();
+  const container = document.getElementById('news-list');
+  if (!key) { renderNews(); return; }
+
+  container.innerHTML = '<div class="empty">Chargement des actualités…</div>';
+  try {
+    const url = `https://api.massive.com/v2/reference/news?limit=12&order=desc&sort=published_utc&apiKey=${key}`;
+    const res = await fetch(url);
+    if (!res.ok) throw new Error(`Erreur ${res.status}`);
+    const data = await res.json();
+    const articles = data.results || [];
+    if (!articles.length) { renderNews(); return; }
+
+    container.innerHTML = articles.map(a => `
+      <div class="news-item">
+        <div class="news-tag">${(a.publisher && a.publisher.name) ? a.publisher.name : 'MARCHÉS'}</div>
+        <div class="news-title">${a.title || ''}</div>
+        ${a.description ? `<div class="news-desc">${a.description.slice(0,220)}${a.description.length>220?'…':''}</div>` : ''}
+        <div class="news-meta">
+          ${a.published_utc ? formatDateNouvelle(a.published_utc) : ''}
+          ${a.article_url ? ` · <a class="news-link" href="${a.article_url}" target="_blank" rel="noopener">Lire l'article</a>` : ''}
+        </div>
+      </div>`).join('');
+  } catch (err) {
+    container.innerHTML = `<div class="empty">Erreur de chargement des actualités. (${err.message})</div>`;
+    console.error(err);
+  }
+}
+
+// ============ PLUS FORTES HAUSSES / BAISSES ============
+let mouvementsCharges = false;
+async function chargerMouvements(){
+  const key = getApiKey();
+  const gEl = document.getElementById('gainers-list');
+  const lEl = document.getElementById('losers-list');
+  if (!key) {
+    gEl.innerHTML = '<div class="empty">Ajoute ta clé API Massive.com dans Réglages pour voir les mouvements.</div>';
+    lEl.innerHTML = '';
+    return;
+  }
+  gEl.innerHTML = '<div class="empty">Chargement…</div>';
+  lEl.innerHTML = '';
+
+  function renderMovers(el, items){
+    el.innerHTML = items.slice(0, 8).map((s, i) => {
+      const variation = s.todaysChangePerc || 0;
+      const px = s.day && s.day.c ? s.day.c.toFixed(2) : (s.min && s.min.c ? s.min.c.toFixed(2) : '—');
+      return `
+        <div class="mover-row">
+          <div class="mover-left">
+            <div class="mover-rank">${i+1}</div>
+            <div class="mover-sym">${s.ticker}</div>
+          </div>
+          <div class="mover-right">
+            <div class="mover-px">${px} $</div>
+            <div class="mover-chg ${variation>=0?'up':'down'}">${variation>=0?'+':''}${variation.toFixed(2)}%</div>
+          </div>
+        </div>`;
+    }).join('');
+  }
+
+  try {
+    const resG = await fetch(`https://api.massive.com/v2/snapshot/locale/us/markets/stocks/gainers?apiKey=${key}`);
+    if (!resG.ok) throw new Error(`Erreur ${resG.status} (gainers)`);
+    const dataG = await resG.json();
+    renderMovers(gEl, dataG.tickers || []);
+
+    await attendre(250);
+
+    const resL = await fetch(`https://api.massive.com/v2/snapshot/locale/us/markets/stocks/losers?apiKey=${key}`);
+    if (!resL.ok) throw new Error(`Erreur ${resL.status} (losers)`);
+    const dataL = await resL.json();
+    renderMovers(lEl, dataL.tickers || []);
+
+    mouvementsCharges = true;
+  } catch (err) {
+    gEl.innerHTML = `<div class="empty">Erreur de chargement. (${err.message})</div>`;
     console.error(err);
   }
 }
@@ -287,6 +480,8 @@ document.getElementById('save-key').addEventListener('click', ()=>{
     localStorage.setItem('massive_api_key', val);
     document.getElementById('key-status').textContent = 'Clé enregistrée — chargement…';
     chargerDonneesReelles();
+    chargerActualites();
+    mouvementsCharges = false;
   }
 });
 
@@ -294,6 +489,7 @@ document.getElementById('save-key').addEventListener('click', ()=>{
 if (getApiKey()) {
   document.getElementById('api-key-input').value = getApiKey();
   chargerDonneesReelles();
+  chargerActualites();
 }
 
 // ============ NAVIGATION ============
@@ -301,9 +497,12 @@ document.querySelectorAll('.nav-btn').forEach(btn=>{
   btn.addEventListener('click', ()=>{
     document.querySelectorAll('.nav-btn').forEach(b=>b.classList.remove('active'));
     btn.classList.add('active');
-    ['briefing','actus','reglages'].forEach(v=>{
+    ['briefing','mouvements','actus','reglages'].forEach(v=>{
       document.getElementById('view-'+v).style.display = (v===btn.dataset.view) ? 'block' : 'none';
     });
+    if (btn.dataset.view === 'mouvements' && !mouvementsCharges) {
+      chargerMouvements();
+    }
   });
 });
 
